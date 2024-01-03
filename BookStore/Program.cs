@@ -46,6 +46,7 @@ app.Path("/api/books", root =>
     root.MapGet("{id}", GetOne);
     root.MapPost(Create);
     root.MapPut("{id}", Update);
+    root.MapDelete("{id}", Delete);
 });
 
 app.Run();
@@ -109,5 +110,21 @@ async Task<IResult> Update(IMongoCollection<Book> books, BookDto book, string? i
     var filter = Builders<Book>.Filter.Eq(s => s.Id, id);
 
     await books.ReplaceOneAsync(filter, item);
+    return Results.Ok(item);
+}
+
+async Task<IResult> Delete(IMongoCollection<Book> books, string? id)
+{
+    if (!ObjectId.TryParse(id, out _))
+        return Results.BadRequest("Invalid object _id was received");
+
+    var item = await books.Find(p => p.Id == id).FirstOrDefaultAsync();
+
+    if (item is null)
+        return Results.NotFound(string.Format("{0} with Id \"{1}\" not found", nameof(Book), id));
+
+    var filter = Builders<Book>.Filter.Eq(s => s.Id, id);
+
+    await books.DeleteOneAsync(filter);
     return Results.Ok(item);
 }
