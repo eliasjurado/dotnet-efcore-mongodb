@@ -1,3 +1,4 @@
+using BookStore.Extensions;
 using BookStore.Models;
 using BookStore.Models.Dto;
 using Branchy;
@@ -10,24 +11,7 @@ var builder = WebApplication.CreateBuilder(args);
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
-
-var options = builder.Configuration.GetSection(nameof(ApiSettings)).Get<ApiSettings>();
-
-builder.Services.AddScoped(_ => new MongoClient(options.ConnectionString));
-
-builder.Services.AddScoped(svc =>
-{
-    var client = svc.GetRequiredService<MongoClient>();
-    var database = client.GetDatabase(options.DatabaseName);
-    return database;
-});
-
-// register collections
-builder.Services.AddScoped(svc =>
-{
-    var db = svc.GetRequiredService<IMongoDatabase>();
-    return db.GetCollection<Book>(options.BooksCollectionName ?? Book.Collection);
-});
+builder.AddMongo();
 
 var app = builder.Build();
 
