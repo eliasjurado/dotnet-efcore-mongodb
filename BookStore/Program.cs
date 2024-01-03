@@ -45,22 +45,23 @@ app.Path("/api/books", root =>
     root.MapGet(GetAll);
     root.MapGet("{id}", GetOne);
     root.MapPost(Create);
+    root.MapPut("{id}", Update);
 });
 
 app.Run();
 
 // Endpoints
-async Task<IResult> GetAll(IMongoCollection<Book> library)
+async Task<IResult> GetAll(IMongoCollection<Book> books)
 {
     var filter = Builders<Book>.Filter.Empty;
 
-    var latest = await library
+    var latest = await books
         .Find(filter)
         .SortByDescending(x => x.CreatedAt)
         .Limit(10)
         .ToListAsync();
 
-    var totalCount = await library.CountDocumentsAsync(filter);
+    var totalCount = await books.CountDocumentsAsync(filter);
 
     return Results.Ok(new
     {
@@ -69,25 +70,44 @@ async Task<IResult> GetAll(IMongoCollection<Book> library)
     });
 }
 
-async Task<IResult> GetOne(IMongoCollection<Book> book, string id)
+async Task<IResult> GetOne(IMongoCollection<Book> books, string id)
 {
     if (!ObjectId.TryParse(id, out _))
         return Results.BadRequest("Invalid object _id was received");
 
-    var person = await book.Find(p => p.Id == id).FirstOrDefaultAsync();
+    var item = await books.Find(p => p.Id == id).FirstOrDefaultAsync();
 
-    return person is { }
-        ? Results.Ok(person)
+    return item is { }
+        ? Results.Ok(item)
         : Results.NotFound(string.Format("{0} with Id \"{1}\" not found", nameof(Book), id));
 }
 
-async Task<IResult> Create(IMongoCollection<Book> library, BookDto book)
+async Task<IResult> Create(IMongoCollection<Book> books, BookDto book)
 {
     var newItem = new Book
     {
         Name = book.Name,
         Pages = book.Pages
     };
-    await library.InsertOneAsync(newItem);
+    await books.InsertOneAsync(newItem);
     return Results.Created(newItem.Id, newItem);
+}
+
+async Task<IResult> Update(IMongoCollection<Book> books, BookDto book, string? id)
+{
+    if (!ObjectId.TryParse(id, out _))
+        return Results.BadRequest("Invalid object _id was received");
+
+    var item = await books.Find(p => p.Id == id).FirstOrDefaultAsync();
+
+    if (item is null)
+        return Results.NotFound(string.Format("{0} with Id \"{1}\" not found", nameof(Book), id));
+
+    item.Name = book.Name;
+    item.Pages = book.Pages;
+
+    var filter = Builders<Book>.Filter.Eq(s => s.Id, id);
+
+    await books.ReplaceOneAsync(filter, item);
+    return Results.Ok(item);
 }
