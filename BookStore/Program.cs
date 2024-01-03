@@ -1,4 +1,5 @@
 using BookStore.Models;
+using BookStore.Models.Dto;
 using Branchy;
 using MongoDB.Bson;
 using MongoDB.Driver;
@@ -43,6 +44,7 @@ app.Path("/api/books", root =>
 {
     root.MapGet(GetAll);
     root.MapGet("{id}", GetOne);
+    root.MapPost(Create);
 });
 
 app.Run();
@@ -72,9 +74,20 @@ async Task<IResult> GetOne(IMongoCollection<Book> book, string id)
     if (!ObjectId.TryParse(id, out _))
         return Results.BadRequest("Invalid object _id was received");
 
-    var person = await book.Find(p => p.Id == id).SingleAsync();
+    var person = await book.Find(p => p.Id == id).FirstOrDefaultAsync();
 
     return person is { }
         ? Results.Ok(person)
-        : Results.NotFound();
+        : Results.NotFound(string.Format("{0} with Id \"{1}\" not found", nameof(Book), id));
+}
+
+async Task<IResult> Create(IMongoCollection<Book> library, BookDto book)
+{
+    var newItem = new Book
+    {
+        Name = book.Name,
+        Pages = book.Pages
+    };
+    await library.InsertOneAsync(newItem);
+    return Results.Created(newItem.Id, newItem);
 }
