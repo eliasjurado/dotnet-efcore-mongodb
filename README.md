@@ -1,5 +1,7 @@
 
 # dotnet-efcore-mongodb
+Minimal API with MongoDB connection using Entity Framework Core
+
 
 ![enter image description here](/docs/swagger.png)
 
