@@ -83,17 +83,22 @@ async Task<IResult> Update(IMongoCollection<Book> books, BookDto book, string? i
     if (!ObjectId.TryParse(id, out _))
         return Results.BadRequest("Invalid object _id was received");
 
-    var item = await books.Find(p => p.Id == id).FirstOrDefaultAsync();
+    var update = Builders<Book>.Update
+        .Set(x => x.Name, book.Name)
+        .Set(x => x.Pages, book.Pages);
+
+    var filter = Builders<Book>.Filter.Eq(s => s.Id, id);
+
+    var options = new FindOneAndUpdateOptions<Book>
+    {
+        ReturnDocument = ReturnDocument.After
+    };
+
+    var item = await books.FindOneAndUpdateAsync(filter, update, options);
 
     if (item is null)
         return Results.NotFound(string.Format("{0} with Id \"{1}\" not found", nameof(Book), id));
 
-    item.Name = book.Name;
-    item.Pages = book.Pages;
-
-    var filter = Builders<Book>.Filter.Eq(s => s.Id, id);
-
-    await books.ReplaceOneAsync(filter, item);
     return Results.Ok(item);
 }
 
